@@ -1,6 +1,6 @@
 ---
 name: slidev-neversink
-description: Create, edit, restyle, and troubleshoot Slidev presentations that use the Neversink theme. Use when working on Slidev decks with `theme: neversink`, theme-specific layouts, color schemes, components, dark-mode behavior, slot-based slide composition, or Neversink customization in Markdown, Vue, and CSS.
+description: "Create, edit, restyle, and troubleshoot Slidev presentations that use the Neversink theme. Use when working on Slidev decks with `theme: neversink`, theme-specific layouts, color schemes, components, dark-mode behavior, slot-based slide composition, or Neversink customization in Markdown, Vue, and CSS."
 ---
 
 # Slidev Neversink
