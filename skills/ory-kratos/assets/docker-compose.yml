@@ -1,0 +1,69 @@
+# Quickstart Docker Compose for Ory Kratos
+# For production deployment, use proper secrets and persistent volumes
+
+version: "3.8"
+
+services:
+  # Kratos API server
+  kratos:
+    image: oryd/kratos:v1.0.0
+    ports:
+      - "4433:4433"  # Public API
+      - "4434:4434"  # Admin API
+    environment:
+      - DSN=sqlite:///var/lib/sqlite/db.sqlite?_fk=true
+      - LOG_LEVEL=info
+      - SECRETS_COOKIE=CHANGE-ME-IN-PRODUCTION-32-CHARS!!
+      - SECRETS_CIPHER=CHANGE-ME-IN-PRODUCTION-32-CHARS!!
+      - COURIER_SMTP_CONNECTION_URI=smtps://test:test@mailslurper:1025/?skip_ssl_verify=true
+    volumes:
+      - type: bind
+        source: ./kratos.yml
+        target: /etc/config/kratos/kratos.yml
+      - type: bind
+        source: ./identity.schema.json
+        target: /etc/config/kratos/identity.schema.json
+      - type: bind
+        source: ./oidc.google.jsonnet
+        target: /etc/config/kratos/oidc.google.jsonnet
+      - type: bind
+        source: ./oidc.github.jsonnet
+        target: /etc/config/kratos/oidc.github.jsonnet
+      - type: volume
+        source: kratos-sqlite
+        target: /var/lib/sqlite
+    command: serve -c /etc/config/kratos/kratos.yml --dev
+    restart: unless-stopped
+    networks:
+      - intranet
+
+  # Kratos UI (example implementation)
+  kratos-selfservice-ui-node:
+    image: oryd/kratos-selfservice-ui-node:v0.13.0-23
+    environment:
+      - KRATOS_PUBLIC_URL=http://kratos:4433/
+      - KRATOS_BROWSER_URL=http://127.0.0.1:4433/
+      - PORT=4455
+      - SECURITY_MODE=cookie
+    ports:
+      - "4455:4455"
+    restart: unless-stopped
+    networks:
+      - intranet
+
+  # MailSlurper - development email server
+  mailslurper:
+    image: oryd/mailslurper:latest
+    ports:
+      - "4436:4436"  # Web UI
+      - "4437:4437"  # API
+      - "1025:1025"  # SMTP
+    networks:
+      - intranet
+
+networks:
+  intranet:
+    driver: bridge
+
+volumes:
+  kratos-sqlite:

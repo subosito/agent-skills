@@ -1,0 +1,126 @@
+# Ory Keto Configuration
+# For production, review https://www.ory.sh/docs/keto/reference/configuration
+
+version: v1.0.0
+
+# Namespace definitions
+# Can also reference a TypeScript file: namespaces: file:///etc/config/namespaces.ts
+namespaces:
+  - id: 0
+    name: User
+  - id: 1
+    name: Role
+  - id: 2
+    name: Group
+  - id: 3
+    name: Resource
+  - id: 4
+    name: Document
+  - id: 5
+    name: Folder
+
+# API server configuration
+serve:
+  # Read API (permission checks, querying tuples)
+  read:
+    host: 0.0.0.0
+    port: 4466
+    
+    # CORS configuration
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+        - http://localhost:8080
+      allowed_methods:
+        - GET
+        - POST
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      allow_credentials: true
+      max_age: 10
+    
+    # Rate limiting (optional)
+    # rate_limit:
+    #   enabled: true
+    #   requests_per_second: 1000
+  
+  # Write API (creating/deleting tuples)
+  write:
+    host: 0.0.0.0
+    port: 4467
+    
+    # CORS configuration
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:3000
+      allowed_methods:
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      allow_credentials: true
+    
+    # Write API should be protected - only internal services
+    # Consider using network policies or authentication middleware
+
+# Profiling (pprof) - development only
+# serve:
+#   prometheus:
+#     host: 0.0.0.0
+#     port: 4468
+#     metrics_path: /metrics
+
+# Log configuration
+log:
+  level: info  # debug, info, warn, error, fatal, panic
+  format: json  # text, json
+  # leak_sensitive_values: false  # Set true only for debugging
+
+# Database configuration
+# DSN can also be set via DSN environment variable
+dsn: memory
+
+# PostgreSQL example:
+# dsn: postgres://user:password@localhost:5432/keto?sslmode=disable
+
+# MySQL example:
+# dsn: mysql://user:password@tcp(localhost:3306)/keto?parseTime=true
+
+# CockroachDB example:
+# dsn: cockroach://user:password@localhost:26257/keto?sslmode=disable
+
+# Tracing configuration (optional)
+# tracing:
+#   provider: jaeger
+#   service_name: ory-keto
+#   jaeger:
+#     local_agent_address: localhost:6831
+#     sampling:
+#       type: const
+#       param: 1
+
+# Metrics configuration (Prometheus)
+# metrics:
+#   prometheus:
+#     enabled: true
+#     port: 4468
+#     path: /metrics
+
+# Max depth for recursive permission checks
+# limit:
+#   max_depth: 100
+
+# Read replica configuration (optional)
+# For high-read scenarios, configure read replicas
+# read_replicas:
+#   - postgres://replica1:5432/keto
+#   - postgres://replica2:5432/keto
+
+# Feature flags
+# features:
+#   - some-feature-flag

@@ -1,0 +1,98 @@
+# Docker Compose for Ory Keto
+# For production deployment, use proper secrets and persistent volumes
+
+version: "3.8"
+
+services:
+  # Keto database (PostgreSQL)
+  keto-postgres:
+    image: postgres:15-alpine
+    container_name: keto-postgres
+    environment:
+      - POSTGRES_USER=keto
+      - POSTGRES_PASSWORD=secret
+      - POSTGRES_DB=keto
+    volumes:
+      - keto-postgres-data:/var/lib/postgresql/data
+    networks:
+      - keto-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keto"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Keto migration
+  keto-migrate:
+    image: oryd/keto:v0.12.0
+    container_name: keto-migrate
+    environment:
+      - DSN=postgres://keto:secret@keto-postgres:5432/keto?sslmode=disable
+    command: migrate up --yes
+    restart: on-failure
+    networks:
+      - keto-net
+    depends_on:
+      keto-postgres:
+        condition: service_healthy
+
+  # Keto read API
+  keto-read:
+    image: oryd/keto:v0.12.0
+    container_name: keto-read
+    ports:
+      - "4466:4466"  # Read/Check API
+    environment:
+      - DSN=postgres://keto:secret@keto-postgres:5432/keto?sslmode=disable
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - SERVE_READ_HOST=0.0.0.0
+      - SERVE_READ_PORT=4466
+      - SERVE_READ_CORS_ENABLED=true
+      - SERVE_READ_CORS_ALLOWED_ORIGINS=http://localhost:3000
+    command: serve read
+    restart: unless-stopped
+    networks:
+      - keto-net
+    depends_on:
+      keto-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4466/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keto write API
+  keto-write:
+    image: oryd/keto:v0.12.0
+    container_name: keto-write
+    ports:
+      - "4467:4467"  # Write API
+    environment:
+      - DSN=postgres://keto:secret@keto-postgres:5432/keto?sslmode=disable
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+      - SERVE_WRITE_HOST=0.0.0.0
+      - SERVE_WRITE_PORT=4467
+      - SERVE_WRITE_CORS_ENABLED=true
+      - SERVE_WRITE_CORS_ALLOWED_ORIGINS=http://localhost:3000
+    command: serve write
+    restart: unless-stopped
+    networks:
+      - keto-net
+    depends_on:
+      keto-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4467/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  keto-postgres-data:
+
+networks:
+  keto-net:
+    driver: bridge

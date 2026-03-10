@@ -1,0 +1,243 @@
+# Ory Kratos Configuration
+# This is a complete example configuration for development.
+# For production, review https://www.ory.sh/docs/kratos/reference/configuration
+
+version: v1.0
+
+# Database connection string
+# Supported: memory (SQLite), postgres, mysql, cockroachdb
+dsn: memory
+
+# Public and Admin API endpoints
+serve:
+  public:
+    base_url: http://127.0.0.1:4433/
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://127.0.0.1:4455
+        - http://localhost:4455
+      allowed_methods:
+        - POST
+        - GET
+        - PUT
+        - PATCH
+        - DELETE
+      allowed_headers:
+        - Authorization
+        - Content-Type
+      exposed_headers:
+        - Content-Type
+  admin:
+    base_url: http://127.0.0.1:4434/
+
+# Self-service flow configuration
+selfservice:
+  # Default URL to redirect to after flows
+  default_browser_return_url: http://127.0.0.1:4455/
+  
+  # Allowed return URLs (security)
+  allowed_return_urls:
+    - http://127.0.0.1:4455
+    - http://localhost:4455
+  
+  # Authentication methods
+  methods:
+    # Password authentication
+    password:
+      enabled: true
+      config:
+        haveibeenpwned_enabled: true
+        identifier_similarity_check_enabled: true
+        min_password_length: 8
+        max_password_breaches: 0
+    
+    # Code-based authentication (passwordless)
+    code:
+      enabled: true
+      config:
+        lifespan: 15m
+    
+    # TOTP (2FA)
+    totp:
+      enabled: true
+      config:
+        issuer: MyApp
+    
+    # WebAuthn (2FA)
+    webauthn:
+      enabled: false
+      config:
+        rp:
+          id: localhost
+          origin: http://localhost:4455
+          display_name: My Application
+    
+    # Passkeys (passwordless)
+    passkey:
+      enabled: false
+      config:
+        rp:
+          id: localhost
+          origin: http://localhost:4455
+          display_name: My Application
+    
+    # OIDC (Social Sign-In)
+    oidc:
+      enabled: false
+      config:
+        providers:
+          - id: google
+            provider: google
+            client_id: ${GOOGLE_CLIENT_ID}
+            client_secret: ${GOOGLE_CLIENT_SECRET}
+            mapper_url: file:///etc/config/kratos/oidc.google.jsonnet
+            scope:
+              - email
+              - profile
+              - openid
+          - id: github
+            provider: github
+            client_id: ${GITHUB_CLIENT_ID}
+            client_secret: ${GITHUB_CLIENT_SECRET}
+            mapper_url: file:///etc/config/kratos/oidc.github.jsonnet
+            scope:
+              - user:email
+  
+  # Flow-specific configuration
+  flows:
+    # Error page
+    error:
+      ui_url: http://127.0.0.1:4455/error
+    
+    # Settings (profile, password, 2FA)
+    settings:
+      ui_url: http://127.0.0.1:4455/settings
+      lifespan: 1h
+      required_aal: aal1
+      privileged_session_max_age: 15m
+    
+    # Account recovery
+    recovery:
+      enabled: true
+      ui_url: http://127.0.0.1:4455/recovery
+      lifespan: 1h
+      use: code  # or "link"
+      notify_unknown_recipients: false
+    
+    # Verification (email confirmation)
+    verification:
+      enabled: true
+      ui_url: http://127.0.0.1:4455/verification
+      lifespan: 1h
+      use: code  # or "link"
+      notify_unknown_recipients: false
+    
+    # Logout
+    logout:
+      after:
+        default_browser_return_url: http://127.0.0.1:4455/login
+    
+    # Login
+    login:
+      ui_url: http://127.0.0.1:4455/login
+      lifespan: 1h
+      after:
+        password:
+          hooks:
+            - hook: revoke_active_sessions
+        oidc:
+          hooks:
+            - hook: revoke_active_sessions
+    
+    # Registration
+    registration:
+      ui_url: http://127.0.0.1:4455/registration
+      lifespan: 1h
+      after:
+        password:
+          hooks:
+            - hook: session  # Auto-login
+        oidc:
+          hooks:
+            - hook: session
+        # Webhook example
+        # hooks:
+        #   - hook: web_hook
+        #     config:
+        #       url: http://my-api/webhook
+        #       method: POST
+        #       body: file:///etc/config/kratos/webhook.jsonnet
+
+# Identity schemas
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+# Session configuration
+session:
+  # Cookie settings
+  cookie:
+    name: ory_kratos_session
+    path: /
+    max_age: 24h
+    same_site: Lax
+  
+  # Session lifespan
+  lifespan: 24h
+  
+  # Whoami token caching (Ory Network)
+  whoami:
+    tokenizer:
+      templates:
+        authorization_code:
+          ttl: 1h
+
+# Courier (email/SMS) configuration
+courier:
+  smtp:
+    connection_uri: smtp://test:test@mailhog:1025/?skip_ssl_verify=true
+    # For production:
+    # connection_uri: smtp://user:pass@smtp.example.com:587/
+    from_address: noreply@example.com
+    from_name: My Application
+  
+  templates:
+    recovery_code:
+      valid:
+        email:
+          subject: file:///etc/config/kratos/templates/recovery_code.subject.gotmpl
+          body: file:///etc/config/kratos/templates/recovery_code.body.gotmpl
+    verification_code:
+      valid:
+        email:
+          subject: file:///etc/config/kratos/templates/verification_code.subject.gotmpl
+          body: file:///etc/config/kratos/templates/verification_code.body.gotmpl
+
+# Secrets (generate strong keys for production!)
+secrets:
+  cookie:
+    - this-is-a-dev-cookie-secret-32-chars
+  cipher:
+    - this-is-a-dev-cipher-secret-32-chars!!
+
+# Log level: trace, debug, info, warn, error, fatal, panic
+log:
+  level: info
+  format: text  # or json
+
+# Telemetry (disable in production if needed)
+serve:
+  public:
+    request_log:
+      disable_for_health: true
+  admin:
+    request_log:
+      disable_for_health: true
+
+# Feature flags
+features:
+  # Enable this to use the new MFA/2FA flows
+  # enable_legacy_mfa_flows: false
